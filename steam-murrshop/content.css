@@ -1,0 +1,117 @@
+#murrshop-buttons-container {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: top;
+}
+
+.murrshop-ext-btn {
+  background: #305275 !important;
+  border: none;
+  border-radius: 2px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 14px;
+  height: 30px !important;
+  line-height: 28px;
+  margin-left: 4px;
+  margin-right: 4px;
+  padding: 1px 6px;
+  pointer-events: auto;
+  text-align: center;
+  text-decoration: none;
+  vertical-align: top;
+}
+
+.murrshop-ext-btn:hover {
+  background: linear-gradient(to right, #67c1f5, #305275) !important;
+  text-decoration: none;
+}
+
+.murrshop-search-btn {
+  width: 40px !important;
+}
+
+.murrshop-app-btn {
+  font-size: 18px;
+  line-height: 34px;
+  margin-left: 8px;
+  min-width: 32px !important;
+  padding: 1px 8px !important;
+  width: auto !important;
+}
+
+.murrshop-top-price {
+  color: limegreen;
+  font-family: "Motiva Sans", Arial, sans-serif;
+  font-size: 17px;
+  margin-left: 4px;
+  position: relative;
+  top: -2px;
+}
+
+.murrshop-top-loader {
+  animation: murrshop-spin 1s linear infinite;
+  border: 2px solid #63b3ed;
+  border-radius: 50%;
+  border-top-color: transparent;
+  display: inline-block;
+  height: 14px;
+  margin-left: 6px;
+  vertical-align: -1px;
+  width: 14px;
+}
+
+@keyframes murrshop-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.murrshop-price-block {
+  align-items: center;
+  background: #16202d;
+  border-radius: 5px;
+  color: #8cb3d9;
+  display: flex;
+  font-family: "Motiva Sans", Arial, sans-serif;
+  font-size: 16px;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  text-align: right;
+}
+
+.murrshop-price-block .murrshop-price-text-container {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.murrshop-price-block .murrshop-price-text {
+  color: #8cb3d9;
+}
+
+.murrshop-price-block .murrshop-best-price-text {
+  color: #8cb3d9;
+  font-size: 14px;
+}
+
+.murrshop-price-block .murrshop-price-value {
+  color: #beee11;
+}
+
+.murrshop-price-block .btn_addtocart {
+  display: inline-block;
+}
+
+.murrshop-price-block .btn_addtocart a {
+  text-decoration: none;
+}

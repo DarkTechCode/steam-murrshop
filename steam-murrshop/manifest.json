@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Steam MurrShop Viewer",
+  "version": "1.0.0",
+  "description": "Показывает ссылки и цены MurrShop на страницах Steam.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "host_permissions": [
+    "https://store.steampowered.com/*",
+    "https://murrshop.ru/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://store.steampowered.com/app/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
+    "default_title": "Steam MurrShop Viewer",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png"
+    }
+  }
+}
