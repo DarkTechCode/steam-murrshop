@@ -2,9 +2,9 @@
 
 Chrome-расширение для страниц игр Steam, которое добавляет ссылки на MurrShop.ru и показывает цену игры прямо на странице Steam.
 
-[![Download ZIP](https://img.shields.io/badge/Download-ZIP-blue)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip)
+[![Download ZIP](https://img.shields.io/badge/Download-ZIP-blue)](https://github.com/DarkTechCode/steam-murrshop/raw/main/steam-murrshop.zip)
 
-**[Скачать последнюю версию (zip)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip)** — всегда свежая сборка из ветки `main`.
+**[Скачать расширение (steam-murrshop.zip)](https://github.com/DarkTechCode/steam-murrshop/raw/main/steam-murrshop.zip)** — архив содержит только файлы расширения; всегда соответствует последней сборке в `main`.
 
 ## Репозиторий
 
@@ -37,7 +37,7 @@ Chrome-расширение для страниц игр Steam, которое �
 
 ## Установка из исходников
 
-1. Скачайте архив по прямой ссылке [steam-murrshop (последняя версия, zip)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip) и разархивируйте его, либо скачайте папку `steam-murrshop` из репозитория.
+1. Скачайте архив расширения [steam-murrshop.zip](https://github.com/DarkTechCode/steam-murrshop/raw/main/steam-murrshop.zip) и распакуйте его — внутри сразу папка `steam-murrshop`. Chrome не умеет устанавливать zip напрямую, распаковка обязательна.
 2. Откройте в chrome браузере страницу `chrome://extensions/`.
 3. Включите режим разработчика.
 4. Нажмите **Load unpacked** / **Загрузить распакованное расширение**.
