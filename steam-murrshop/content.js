@@ -311,7 +311,7 @@
     if (payload.filtered > 0 && payload.minPrice !== null) {
       const price = document.createElement("span");
       price.className = "murrshop-plati-price";
-      price.textContent = ` · ${payload.minPrice}₽`;
+      price.textContent = ` · ${payload.minPrice}`;
       button.appendChild(price);
     }
   }

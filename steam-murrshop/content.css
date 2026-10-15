@@ -33,6 +33,8 @@
   width: auto !important;
   padding: 1px 8px !important;
   white-space: nowrap;
+  font-size: 18px; /* Как у .murrshop-app-btn */
+  line-height: 34px;
 }
 
 .murrshop-search-btn.murrshop-zero-offers {
@@ -43,9 +45,14 @@
   background: linear-gradient(to right, #d9534f, #a94442) !important;
 }
 
+/* Минимальная цена маркета — как .murrshop-top-price */
 .murrshop-plati-price {
-  color: #beee11;
+  color: limegreen;
   font-family: "Motiva Sans", Arial, sans-serif;
+  font-size: 17px;
+  margin-left: 4px;
+  position: relative;
+  top: -2px;
 }
 
 .murrshop-app-btn {
