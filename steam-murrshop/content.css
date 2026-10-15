@@ -29,7 +29,23 @@
 }
 
 .murrshop-search-btn {
-  width: 40px !important;
+  min-width: 40px !important;
+  width: auto !important;
+  padding: 1px 8px !important;
+  white-space: nowrap;
+}
+
+.murrshop-search-btn.murrshop-zero-offers {
+  background: #a94442 !important;
+}
+
+.murrshop-search-btn.murrshop-zero-offers:hover {
+  background: linear-gradient(to right, #d9534f, #a94442) !important;
+}
+
+.murrshop-plati-price {
+  color: #beee11;
+  font-family: "Motiva Sans", Arial, sans-serif;
 }
 
 .murrshop-app-btn {

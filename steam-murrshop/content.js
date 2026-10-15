@@ -21,6 +21,12 @@
     status: null,
   };
 
+  const platiState = {
+    requestedAppId: null,
+    requestInProgress: false,
+    retryAttempts: 0,
+  };
+
   function initialize() {
     syncPage();
     observeSteamContainers();
@@ -67,6 +73,7 @@
 
     if (appChanged) {
       renderMurrShopButtonLoading(appId);
+      renderSearchButtonLoading();
     }
 
     if (state.status !== null) {
@@ -74,6 +81,7 @@
     }
 
     requestStatusOnce(appId);
+    requestPlatiCountOnce(appId, getAppName());
   }
 
   function resetStateIfAppChanged(appId) {
@@ -86,6 +94,10 @@
     state.requestInProgress = false;
     state.retryAttempts = 0;
     state.status = null;
+
+    platiState.requestedAppId = null;
+    platiState.requestInProgress = false;
+    platiState.retryAttempts = 0;
 
     return true;
   }
@@ -133,10 +145,21 @@
     button.href = createPplatiSearchUrl(query);
     button.target = "_blank";
     button.rel = "noopener noreferrer";
-    button.title = "Найти на pplati.ru";
-    button.textContent = "🔍";
+    button.title = "Ищем предложения на plati.market...";
+    button.dataset.renderedText = "loading";
+    button.append(
+      document.createTextNode("🔍"),
+      createLoaderElement(),
+    );
 
     return button;
+  }
+
+  function createLoaderElement() {
+    const loader = document.createElement("span");
+    loader.className = "murrshop-top-loader";
+
+    return loader;
   }
 
   function createMurrShopButton(appId) {
@@ -198,6 +221,140 @@
         requestStatusOnce(appId);
       }
     }, retryDelay);
+  }
+
+  function requestPlatiCountOnce(appId, appName) {
+    if (platiState.requestInProgress || platiState.requestedAppId === appId) {
+      return;
+    }
+
+    if (!appName) {
+      return;
+    }
+
+    platiState.requestInProgress = true;
+    platiState.requestedAppId = appId;
+
+    chrome.runtime.sendMessage(
+      { action: "getPlatiCount", appId, appName },
+      (response) => handlePlatiCountResponse(appId, appName, response),
+    );
+  }
+
+  function handlePlatiCountResponse(appId, appName, response) {
+    platiState.requestInProgress = false;
+
+    if (state.appId !== appId) {
+      return;
+    }
+
+    if (
+      chrome.runtime.lastError ||
+      !response ||
+      response.ok !== true ||
+      !response.payload
+    ) {
+      retryPlatiCountRequest(appId, appName);
+      return;
+    }
+
+    platiState.retryAttempts = 0;
+    renderSearchButtonPlati(appId, appName, response.payload);
+  }
+
+  function retryPlatiCountRequest(appId, appName) {
+    platiState.retryAttempts += 1;
+
+    if (platiState.retryAttempts > MAX_RETRY_ATTEMPTS) {
+      renderSearchButtonError(appId);
+      return;
+    }
+
+    platiState.requestedAppId = null;
+    const retryDelay = RETRY_DELAY_MS * 2 ** (platiState.retryAttempts - 1);
+
+    window.setTimeout(() => {
+      if (state.appId === appId) {
+        requestPlatiCountOnce(appId, appName);
+      }
+    }, retryDelay);
+  }
+
+  function renderSearchButtonLoading() {
+    const button = document.getElementById(SEARCH_BUTTON_ID);
+    if (!button) {
+      return;
+    }
+
+    button.title = "Ищем предложения на plati.market...";
+    button.dataset.renderedText = "loading";
+    button.classList.remove("murrshop-zero-offers");
+    button.replaceChildren(document.createTextNode("🔍"), createLoaderElement());
+  }
+
+  function renderSearchButtonPlati(appId, appName, payload) {
+    const button = document.getElementById(SEARCH_BUTTON_ID);
+    if (!button || state.appId !== appId) {
+      return;
+    }
+
+    const renderedText = `${payload.filtered}:${payload.minPrice}`;
+    if (button.dataset.renderedText === renderedText) {
+      return;
+    }
+
+    button.dataset.renderedText = renderedText;
+    button.classList.toggle("murrshop-zero-offers", payload.filtered === 0);
+    button.title = createPlatiTitle(appName, payload);
+    button.replaceChildren(document.createTextNode(`🔍 ${payload.filtered}`));
+
+    if (payload.filtered > 0 && payload.minPrice !== null) {
+      const price = document.createElement("span");
+      price.className = "murrshop-plati-price";
+      price.textContent = ` · ${payload.minPrice}₽`;
+      button.appendChild(price);
+    }
+  }
+
+  function renderSearchButtonError(appId) {
+    const button = document.getElementById(SEARCH_BUTTON_ID);
+    if (!button || state.appId !== appId) {
+      return;
+    }
+
+    button.dataset.renderedText = "error";
+    button.classList.remove("murrshop-zero-offers");
+    button.title = "Не удалось получить количество предложений plati.market";
+    button.replaceChildren(document.createTextNode("🔍 ?"));
+  }
+
+  function createPlatiTitle(appName, payload) {
+    const totalPart =
+      payload.total > payload.filtered ? ` (всего ${payload.total})` : "";
+
+    if (payload.filtered === 0) {
+      return `Нет предложений plati.market после фильтров${totalPart} — поиск: «${appName}»`;
+    }
+
+    const pricePart =
+      payload.minPrice !== null ? `, от ${payload.minPrice} ₽` : "";
+
+    return `${payload.filtered} ${pluralizeOffers(payload.filtered)} на plati.market${totalPart}${pricePart} — поиск: «${appName}»`;
+  }
+
+  function pluralizeOffers(count) {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+
+    if (mod10 === 1 && mod100 !== 11) {
+      return "предложение";
+    }
+
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+      return "предложения";
+    }
+
+    return "предложений";
   }
 
   function normalizeStatus(response) {

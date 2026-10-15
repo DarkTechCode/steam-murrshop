@@ -1,16 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Steam MurrShop Viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Показывает ссылки и цены MurrShop на страницах Steam.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
   },
+  "permissions": ["storage"],
   "host_permissions": [
     "https://store.steampowered.com/*",
-    "https://murrshop.ru/*"
+    "https://murrshop.ru/*",
+    "https://pplati.ru/*"
   ],
   "content_scripts": [
     {
