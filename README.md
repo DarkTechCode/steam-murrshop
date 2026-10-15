@@ -2,6 +2,10 @@
 
 Chrome-расширение для страниц игр Steam, которое добавляет ссылки на MurrShop.ru и показывает цену игры прямо на странице Steam.
 
+[![Download ZIP](https://img.shields.io/badge/Download-ZIP-blue)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip)
+
+**[Скачать последнюю версию (zip)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip)** — всегда свежая сборка из ветки `main`.
+
 ## Репозиторий
 
 `steam-murrshop`
@@ -33,7 +37,7 @@ Chrome-расширение для страниц игр Steam, которое �
 
 ## Установка из исходников
 
-1. Скачайте и разархивируйте архив steam-murrshop.zip , или скачайте папку steam-murrshop.
+1. Скачайте архив по прямой ссылке [steam-murrshop (последняя версия, zip)](https://github.com/DarkTechCode/steam-murrshop/archive/refs/heads/main.zip) и разархивируйте его, либо скачайте папку `steam-murrshop` из репозитория.
 2. Откройте в chrome браузере страницу `chrome://extensions/`.
 3. Включите режим разработчика.
 4. Нажмите **Load unpacked** / **Загрузить распакованное расширение**.
