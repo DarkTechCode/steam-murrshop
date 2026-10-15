@@ -18,6 +18,7 @@ Chrome-расширение для страниц игр Steam, которое �
 ## Возможности
 
 - Добавляет кнопку поиска игры на `pplati.ru`.
+- Показывает в кнопке поиска число предложений plati.market и минимальную цену: `🔍 12 · 978` (красная кнопка — предложений нет).
 - Добавляет кнопку просмотра игры на `murrshop.ru`.
 - Проверяет наличие игры через публичный endpoint MurrShop.
 - Показывает цену MurrShop в верхней кнопке на странице Steam.
@@ -47,5 +48,5 @@ Chrome-расширение для страниц игр Steam, которое �
 - [`manifest.json`](steam-murrshop/manifest.json) — конфигурация Chrome Extension Manifest V3.
 - [`content.js`](steam-murrshop/content.js) — вставка кнопок и блока цены на страницу Steam.
 - [`content.css`](steam-murrshop/content.css) — стили кнопок и блока цены.
-- [`background.js`](steam-murrshop/background.js) — проверка игры через MurrShop API.
+- [`background.js`](steam-murrshop/background.js) — проверка игры через MurrShop API и счётчик предложений pplati.ru.
 - [`icon16.png`](steam-murrshop/icon16.png), [`icon48.png`](steam-murrshop/icon48.png), [`icon128.png`](steam-murrshop/icon128.png) — иконки расширения.
