@@ -37,6 +37,21 @@
   line-height: 34px;
 }
 
+/* Панель на странице игры, недоступной в регионе (в начале .page_content) */
+#murrshop-buttons-container.murrshop-blocked-panel {
+  display: block;
+  font-family: "Motiva Sans", Arial, sans-serif;
+  font-size: 15px;
+  margin-bottom: 40px;
+  margin-top: 16px;
+}
+
+/* Кнопка поиска с текстовой подписью на странице ошибки */
+.murrshop-search-btn.murrshop-search-btn-labeled {
+  font-size: 15px;
+  line-height: 28px;
+}
+
 .murrshop-search-btn.murrshop-zero-offers {
   background: #a94442 !important;
 }

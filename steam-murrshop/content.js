@@ -12,6 +12,12 @@
     ".apphub_OtherSiteInfo",
     ".game_area_purchase_game_wrapper",
   ];
+  // Страница ошибки «Данный товар недоступен в вашем регионе» (RU/EN варианты)
+  const REGION_BLOCKED_PATTERN =
+    /недоступен в вашем регионе|unavailable in your (region|country)/i;
+  // Слаг страницы ошибки, который Steam подставляет в URL («Ошибка веб-страницы»)
+  const ERROR_SLUG_PATTERN = /^(ошибка|site error|error)/i;
+  const BLOCKED_PANEL_CLASS = "murrshop-blocked-panel";
 
   const state = {
     appId: null,
@@ -25,6 +31,11 @@
     requestedAppId: null,
     requestInProgress: false,
     retryAttempts: 0,
+  };
+
+  // Страница недоступной в регионе игры: запрос названия через зеркало
+  const blockedState = {
+    nameRequestedFor: null,
   };
 
   function initialize() {
@@ -65,6 +76,12 @@
       return;
     }
 
+    // У недоступных в регионе игр страница ошибки без шапки Steam (.apphub_*)
+    if (isRegionBlockedPage()) {
+      syncBlockedPage(appId);
+      return;
+    }
+
     const appChanged = resetStateIfAppChanged(appId);
     const buttonsReady = ensureTopButtons(appId, getAppName());
     if (!buttonsReady) {
@@ -99,7 +116,131 @@
     platiState.requestInProgress = false;
     platiState.retryAttempts = 0;
 
+    blockedState.nameRequestedFor = null;
+
     return true;
+  }
+
+  // --- Страница недоступной в регионе игры ---
+
+  // Кнопка поиска plati (единственная) в начале блока контента страницы ошибки.
+  // Названия игры в DOM нет, поэтому грузим его через background (зеркало
+  // appdetails MurrShop) и уточняем ссылку поиска.
+  function syncBlockedPage(appId) {
+    const appChanged = resetStateIfAppChanged(appId);
+    if (!ensureBlockedSearchButton()) {
+      return;
+    }
+
+    if (appChanged) {
+      renderSearchButtonLoading();
+    }
+
+    requestBlockedGameNameOnce(appId);
+  }
+
+  function ensureBlockedSearchButton() {
+    const errorBox = document.getElementById("error_box");
+    const pageContent = errorBox?.closest(".page_content");
+    if (!pageContent) {
+      return false;
+    }
+
+    if (document.getElementById(SEARCH_BUTTON_ID)) {
+      return true;
+    }
+
+    const container = document.createElement("div");
+    container.id = BUTTONS_CONTAINER_ID;
+    container.dataset.labeled = "1";
+    container.classList.add(BLOCKED_PANEL_CLASS);
+    container.append(createBlockedSearchButton());
+    pageContent.insertBefore(container, pageContent.firstChild);
+
+    return true;
+  }
+
+  // Кнопка поиска с текстовой подписью — на странице ошибки места много
+  function createBlockedSearchButton() {
+    const button = createSearchButton("");
+    button.classList.add("murrshop-search-btn-labeled");
+    button.href = "https://pplati.ru/";
+    button.title = "Получаем название игры...";
+    button.dataset.renderedText = "loading";
+    button.replaceChildren(
+      document.createTextNode("🔍 Получаем название…"),
+    );
+
+    return button;
+  }
+
+  function requestBlockedGameNameOnce(appId) {
+    if (blockedState.nameRequestedFor === appId) {
+      return;
+    }
+
+    blockedState.nameRequestedFor = appId;
+
+    chrome.runtime.sendMessage(
+      { action: "getGameName", appId },
+      (response) => handleBlockedGameName(appId, response),
+    );
+  }
+
+  function handleBlockedGameName(appId, response) {
+    if (state.appId !== appId) {
+      return;
+    }
+
+    // Прямой appdetails Steam для недоступных игр молчит, background берёт
+    // название через зеркало MurrShop; если не вышло — слаг URL
+    const mirroredName =
+      !chrome.runtime.lastError && response && response.ok && response.name
+        ? String(response.name).trim()
+        : null;
+    const name =
+      mirroredName && !mirroredName.startsWith("Игра ")
+        ? mirroredName
+        : getAppNameFromSlug();
+
+    if (!name) {
+      renderSearchButtonNoQuery();
+      return;
+    }
+
+    applyBlockedSearchName(appId, name);
+  }
+
+  function applyBlockedSearchName(appId, name) {
+    const button = document.getElementById(SEARCH_BUTTON_ID);
+    if (!button || state.appId !== appId) {
+      return;
+    }
+
+    button.dataset.renderedText = "loading";
+    button.title = "Ищем предложения на plati.market...";
+    button.href = createPplatiSearchUrl(name);
+    button.replaceChildren(
+      document.createTextNode("🔍 Искать на plati.market…"),
+      createLoaderElement(),
+    );
+
+    requestPlatiCountOnce(appId, name);
+  }
+
+  function renderSearchButtonNoQuery() {
+    const button = document.getElementById(SEARCH_BUTTON_ID);
+    if (!button) {
+      return;
+    }
+
+    button.dataset.renderedText = "no-query";
+    button.classList.remove("murrshop-zero-offers");
+    button.href = "https://pplati.ru/";
+    button.title = "Найти на pplati.ru";
+    button.replaceChildren(
+      document.createTextNode("🔍 Искать на plati.market"),
+    );
   }
 
   function ensureTopButtons(appId, appName) {
@@ -289,7 +430,10 @@
     button.title = "Ищем предложения на plati.market...";
     button.dataset.renderedText = "loading";
     button.classList.remove("murrshop-zero-offers");
-    button.replaceChildren(document.createTextNode("🔍"), createLoaderElement());
+    button.replaceChildren(
+      document.createTextNode(isLabeledPanel() ? "🔍 Получаем название…" : "🔍"),
+      createLoaderElement(),
+    );
   }
 
   function renderSearchButtonPlati(appId, appName, payload) {
@@ -306,12 +450,25 @@
     button.dataset.renderedText = renderedText;
     button.classList.toggle("murrshop-zero-offers", payload.filtered === 0);
     button.title = createPlatiTitle(appName, payload);
-    button.replaceChildren(document.createTextNode(`🔍 ${payload.filtered}`));
+
+    if (isLabeledPanel()) {
+      button.replaceChildren(
+        document.createTextNode(
+          `🔍 На plati: ${payload.filtered} ${pluralizeOffers(payload.filtered)}`,
+        ),
+      );
+    } else {
+      button.replaceChildren(
+        document.createTextNode(`🔍 ${payload.filtered}`),
+      );
+    }
 
     if (payload.filtered > 0 && payload.minPrice !== null) {
       const price = document.createElement("span");
       price.className = "murrshop-plati-price";
-      price.textContent = ` · ${payload.minPrice}`;
+      price.textContent = isLabeledPanel()
+        ? ` · от ${payload.minPrice} ₽`
+        : ` · ${payload.minPrice}`;
       button.appendChild(price);
     }
   }
@@ -325,7 +482,9 @@
     button.dataset.renderedText = "error";
     button.classList.remove("murrshop-zero-offers");
     button.title = "Не удалось получить количество предложений plati.market";
-    button.replaceChildren(document.createTextNode("🔍 ?"));
+    button.replaceChildren(
+      document.createTextNode(isLabeledPanel() ? "🔍 Искать на plati.market" : "🔍 ?"),
+    );
   }
 
   function createPlatiTitle(appName, payload) {
@@ -554,6 +713,43 @@
     const appName = document.querySelector(".apphub_AppName");
 
     return appName ? appName.textContent.trim() : null;
+  }
+
+  // Страница ошибки «недоступно в вашем регионе»: блок #error_box есть,
+  // а шапки Steam (.apphub_*) — нет
+  function isRegionBlockedPage() {
+    const errorBox = document.getElementById("error_box");
+
+    return (
+      errorBox !== null && REGION_BLOCKED_PATTERN.test(errorBox.textContent || "")
+    );
+  }
+
+  // Название игры из слага URL (/app/1817190/Marvels_SpiderMan_Miles_Morales/) —
+  // резерв для страниц ошибки, где названия нет в DOM
+  function getAppNameFromSlug() {
+    const match = window.location.pathname.match(/\/app\/\d+\/([^/]+)/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      const name = decodeURIComponent(match[1]).replace(/_/g, " ").trim();
+      if (!name || ERROR_SLUG_PATTERN.test(name)) {
+        return null;
+      }
+
+      return name;
+    } catch {
+      return null;
+    }
+  }
+
+  // Панель создана в режиме текстовых подписей (страница недоступной игры)
+  function isLabeledPanel() {
+    const container = document.getElementById(BUTTONS_CONTAINER_ID);
+
+    return !!container && container.dataset.labeled === "1";
   }
 
   function createPplatiSearchUrl(query) {

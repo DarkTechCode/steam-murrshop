@@ -1,5 +1,8 @@
 const MURRSHOP_CHECK_ENDPOINT = "https://murrshop.ru/wp-json/steam/v1/check";
 const PPLATI_COUNT_ENDPOINT = "https://pplati.ru/api.php";
+// Зеркало appdetails MurrShop (Cloudflare Worker): прямой Steam API с RU-IP
+// отвечает success:false для игр, недоступных в регионе, зеркало — проходит
+const MIRROR_APPDETAILS_ENDPOINT = "https://steam.mail-60b.workers.dev/api/appdetails";
 const PPLATI_COUNT_TTL_MS = 12 * 60 * 60 * 1000; // как серверный кэш pplati.ru
 const PPLATI_COUNT_CACHE_PREFIX = "platiCount:";
 
@@ -10,6 +13,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch((error) => {
         console.warn("pplati count failed", error);
         sendResponse({ ok: false, payload: null });
+      });
+    return true;
+  }
+
+  if (request && request.action === "getGameName") {
+    getGameName(request.appId)
+      .then((name) => sendResponse({ ok: name !== null, name }))
+      .catch((error) => {
+        console.warn("game name failed", error);
+        sendResponse({ ok: false, name: null });
       });
     return true;
   }
@@ -51,6 +64,49 @@ async function checkGameStatus(appId) {
   const data = await parseJsonResponse(response);
 
   return mapGameStatus(data, appId);
+}
+
+// Название игры через зеркало appdetails MurrShop. Нужно для страниц
+// «Данный товар недоступен в вашем регионе»: там нет ни DOM-заголовка, ни
+// ответа прямого Steam API. Возвращает имя или null.
+async function getGameName(appId) {
+  const normalizedAppId = normalizeAppId(appId);
+  if (normalizedAppId === null) {
+    return null;
+  }
+
+  try {
+    const url = new URL(MIRROR_APPDETAILS_ENDPOINT);
+    url.searchParams.set("appids", normalizedAppId);
+    url.searchParams.set("l", "russian");
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      cache: "no-store",
+      credentials: "omit",
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Внешний ключ ответа appdetails может не совпадать с appid
+    // (Steam отдаёт внутренний store item id), ищем по data.steam_appid
+    const entries = Object.values(data || {});
+    const entry = entries.find(
+      (e) =>
+        e &&
+        e.success &&
+        e.data &&
+        e.data.steam_appid === Number(normalizedAppId) &&
+        e.data.name,
+    );
+
+    return entry ? entry.data.name : null;
+  } catch {
+    return null;
+  }
 }
 
 async function parseJsonResponse(response) {
