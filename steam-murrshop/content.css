@@ -52,6 +52,12 @@
   line-height: 28px;
 }
 
+/* Кнопка MurrShop с текстовой подписью на странице ошибки */
+.murrshop-app-btn.murrshop-app-btn-labeled {
+  font-size: 15px;
+  line-height: 28px;
+}
+
 .murrshop-search-btn.murrshop-zero-offers {
   background: #a94442 !important;
 }

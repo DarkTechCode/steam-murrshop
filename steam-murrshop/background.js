@@ -3,6 +3,8 @@ const PPLATI_COUNT_ENDPOINT = "https://pplati.ru/api.php";
 // Зеркало appdetails MurrShop (Cloudflare Worker): прямой Steam API с RU-IP
 // отвечает success:false для игр, недоступных в регионе, зеркало — проходит
 const MIRROR_APPDETAILS_ENDPOINT = "https://steam.mail-60b.workers.dev/api/appdetails";
+// Жёсткий таймаут запроса к зеркалу — fetch не должен висеть бесконечно
+const MIRROR_FETCH_TIMEOUT_MS = 8000;
 const PPLATI_COUNT_TTL_MS = 12 * 60 * 60 * 1000; // как серверный кэш pplati.ru
 const PPLATI_COUNT_CACHE_PREFIX = "platiCount:";
 
@@ -75,6 +77,12 @@ async function getGameName(appId) {
     return null;
   }
 
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(
+    () => abortController.abort(),
+    MIRROR_FETCH_TIMEOUT_MS,
+  );
+
   try {
     const url = new URL(MIRROR_APPDETAILS_ENDPOINT);
     url.searchParams.set("appids", normalizedAppId);
@@ -84,6 +92,7 @@ async function getGameName(appId) {
       method: "GET",
       cache: "no-store",
       credentials: "omit",
+      signal: abortController.signal,
     });
     if (!response.ok) {
       return null;
@@ -106,6 +115,8 @@ async function getGameName(appId) {
     return entry ? entry.data.name : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

@@ -18,6 +18,8 @@
   // Слаг страницы ошибки, который Steam подставляет в URL («Ошибка веб-страницы»)
   const ERROR_SLUG_PATTERN = /^(ошибка|site error|error)/i;
   const BLOCKED_PANEL_CLASS = "murrshop-blocked-panel";
+  // Страховка от зависшего запроса названия через зеркало
+  const BLOCKED_NAME_TIMEOUT_MS = 15000;
 
   const state = {
     appId: null,
@@ -36,6 +38,8 @@
   // Страница недоступной в регионе игры: запрос названия через зеркало
   const blockedState = {
     nameRequestedFor: null,
+    nameResolvedFor: null,
+    nameWatchdogTimerId: null,
   };
 
   function initialize() {
@@ -117,18 +121,23 @@
     platiState.retryAttempts = 0;
 
     blockedState.nameRequestedFor = null;
+    blockedState.nameResolvedFor = null;
+    if (blockedState.nameWatchdogTimerId !== null) {
+      window.clearTimeout(blockedState.nameWatchdogTimerId);
+      blockedState.nameWatchdogTimerId = null;
+    }
 
     return true;
   }
 
   // --- Страница недоступной в регионе игры ---
 
-  // Кнопка поиска plati (единственная) в начале блока контента страницы ошибки.
-  // Названия игры в DOM нет, поэтому грузим его через background (зеркало
-  // appdetails MurrShop) и уточняем ссылку поиска.
+  // Панель с двумя подписанными кнопками (plati + MurrShop) в начале блока
+  // контента страницы ошибки. Названия игры в DOM нет, поэтому грузим его
+  // через background (зеркало appdetails MurrShop) и уточняем ссылку поиска.
   function syncBlockedPage(appId) {
     const appChanged = resetStateIfAppChanged(appId);
-    if (!ensureBlockedSearchButton()) {
+    if (!ensureBlockedPanel(appId)) {
       return;
     }
 
@@ -136,17 +145,22 @@
       renderSearchButtonLoading();
     }
 
+    if (state.status !== null) {
+      renderStatus(appId, state.status);
+    }
+
+    requestStatusOnce(appId);
     requestBlockedGameNameOnce(appId);
   }
 
-  function ensureBlockedSearchButton() {
+  function ensureBlockedPanel(appId) {
     const errorBox = document.getElementById("error_box");
     const pageContent = errorBox?.closest(".page_content");
     if (!pageContent) {
       return false;
     }
 
-    if (document.getElementById(SEARCH_BUTTON_ID)) {
+    if (document.getElementById(BUTTONS_CONTAINER_ID)) {
       return true;
     }
 
@@ -154,10 +168,23 @@
     container.id = BUTTONS_CONTAINER_ID;
     container.dataset.labeled = "1";
     container.classList.add(BLOCKED_PANEL_CLASS);
-    container.append(createBlockedSearchButton());
+    container.append(
+      createBlockedSearchButton(),
+      createBlockedMurrShopButton(appId),
+    );
     pageContent.insertBefore(container, pageContent.firstChild);
 
     return true;
+  }
+
+  // Кнопка MurrShop с подписью: скрыта, пока игра не найдена на сайте
+  function createBlockedMurrShopButton(appId) {
+    const button = createMurrShopButton(appId);
+    button.classList.add("murrshop-app-btn-labeled");
+    button.dataset.renderedText = "hidden";
+    button.style.display = "none";
+
+    return button;
   }
 
   // Кнопка поиска с текстовой подписью — на странице ошибки места много
@@ -181,15 +208,34 @@
 
     blockedState.nameRequestedFor = appId;
 
-    chrome.runtime.sendMessage(
-      { action: "getGameName", appId },
-      (response) => handleBlockedGameName(appId, response),
-    );
+    // Страховка: если background так и не ответил (зеркало недоступен,
+    // воркер остановлен и т.п.), через таймаут уходим в резервное имя
+    blockedState.nameWatchdogTimerId = window.setTimeout(() => {
+      blockedState.nameWatchdogTimerId = null;
+      if (state.appId === appId) {
+        handleBlockedGameName(appId, null);
+      }
+    }, BLOCKED_NAME_TIMEOUT_MS);
+
+    try {
+      chrome.runtime.sendMessage(
+        { action: "getGameName", appId },
+        (response) => handleBlockedGameName(appId, response),
+      );
+    } catch {
+      handleBlockedGameName(appId, null);
+    }
   }
 
   function handleBlockedGameName(appId, response) {
-    if (state.appId !== appId) {
+    if (state.appId !== appId || blockedState.nameResolvedFor === appId) {
       return;
+    }
+
+    blockedState.nameResolvedFor = appId;
+    if (blockedState.nameWatchdogTimerId !== null) {
+      window.clearTimeout(blockedState.nameWatchdogTimerId);
+      blockedState.nameWatchdogTimerId = null;
     }
 
     // Прямой appdetails Steam для недоступных игр молчит, background берёт
@@ -568,6 +614,11 @@
       return;
     }
 
+    if (isLabeledPanel()) {
+      renderBlockedMurrShopButton(button, appId, status);
+      return;
+    }
+
     const renderedText =
       status.exists && status.price !== null ? `😺 ${status.price} ₽` : "😺";
 
@@ -591,9 +642,44 @@
     }
   }
 
+  // Кнопка MurrShop на странице ошибки: показываем только если игра есть на сайте
+  function renderBlockedMurrShopButton(button, appId, status) {
+    button.href = createMurrShopAppUrl(appId);
+
+    if (!status.exists) {
+      button.dataset.renderedText = "hidden";
+      button.style.display = "none";
+      return;
+    }
+
+    button.style.display = "";
+    button.title = "Открыть игру на MurrShop";
+
+    const renderedText = status.price !== null ? `😺 ${status.price} ₽` : "😺";
+    if (button.dataset.renderedText === renderedText) {
+      return;
+    }
+
+    button.dataset.renderedText = renderedText;
+    button.replaceChildren(document.createTextNode("😺 Открыть на MurrShop"));
+
+    if (status.price !== null) {
+      const price = document.createElement("span");
+      price.className = "murrshop-top-price";
+      price.textContent = ` · ${status.price} ₽`;
+      button.appendChild(price);
+    }
+  }
+
   function renderMurrShopButtonUnavailable(appId, title) {
     const button = document.getElementById(MURRSHOP_BUTTON_ID);
     if (!button) {
+      return;
+    }
+
+    if (isLabeledPanel()) {
+      button.dataset.renderedText = "hidden";
+      button.style.display = "none";
       return;
     }
 
