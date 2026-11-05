@@ -58,6 +58,15 @@
   line-height: 28px;
 }
 
+/* Цены в подписанных кнопках на странице недоступной игры */
+.murrshop-app-btn-labeled .murrshop-top-price {
+  top: 1px;
+}
+
+.murrshop-search-btn-labeled .murrshop-plati-price {
+  top: 0;
+}
+
 .murrshop-search-btn.murrshop-zero-offers {
   background: #a94442 !important;
 }
@@ -91,7 +100,7 @@
   font-size: 17px;
   margin-left: 4px;
   position: relative;
-  top: 1px;
+  top: -2px;
 }
 
 .murrshop-top-loader {
