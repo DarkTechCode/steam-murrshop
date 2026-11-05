@@ -1,4 +1,5 @@
 const MURRSHOP_CHECK_ENDPOINT = "https://murrshop.ru/wp-json/steam/v1/check";
+const MURRSHOP_APPNAME_ENDPOINT = "https://murrshop.ru/wp-json/steam/v1/appname";
 const PPLATI_COUNT_ENDPOINT = "https://pplati.ru/api.php";
 // Зеркало appdetails MurrShop (Cloudflare Worker): прямой Steam API с RU-IP
 // отвечает success:false для игр, недоступных в регионе, зеркало — проходит
@@ -68,15 +69,51 @@ async function checkGameStatus(appId) {
   return mapGameStatus(data, appId);
 }
 
-// Название игры через зеркало appdetails MurrShop. Нужно для страниц
-// «Данный товар недоступен в вашем регионе»: там нет ни DOM-заголовка, ни
-// ответа прямого Steam API. Возвращает имя или null.
+// Название игры. Основной путь — API MurrShop: сервер сам ходит в Steam
+// напрямую или через зеркало, и домен murrshop.ru уже есть в разрешениях
+// расширения (через него же работает check). Резерв — прямое зеркало
+// appdetails из браузера. Нужно для страниц «Данный товар недоступен
+// в вашем регионе», где названия нет ни в DOM, ни в прямом Steam API.
 async function getGameName(appId) {
   const normalizedAppId = normalizeAppId(appId);
   if (normalizedAppId === null) {
     return null;
   }
 
+  const siteName = await getGameNameFromSite(normalizedAppId);
+  if (siteName !== null) {
+    return siteName;
+  }
+
+  return getGameNameFromMirror(normalizedAppId);
+}
+
+// GET /wp-json/steam/v1/appname?ids=<appid> → {"names":{"<appid>":"Название"}}
+async function getGameNameFromSite(appId) {
+  try {
+    const url = new URL(MURRSHOP_APPNAME_ENDPOINT);
+    url.searchParams.set("ids", appId);
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      cache: "no-store",
+      credentials: "omit",
+    });
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const name = data && data.names ? data.names[appId] : null;
+
+    return typeof name === "string" && name.trim() !== "" ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+// Резервный путь: зеркало appdetails (Cloudflare Worker) напрямую из браузера
+async function getGameNameFromMirror(appId) {
   const abortController = new AbortController();
   const timeoutId = setTimeout(
     () => abortController.abort(),
@@ -85,7 +122,7 @@ async function getGameName(appId) {
 
   try {
     const url = new URL(MIRROR_APPDETAILS_ENDPOINT);
-    url.searchParams.set("appids", normalizedAppId);
+    url.searchParams.set("appids", appId);
     url.searchParams.set("l", "russian");
 
     const response = await fetch(url.toString(), {
@@ -108,7 +145,7 @@ async function getGameName(appId) {
         e &&
         e.success &&
         e.data &&
-        e.data.steam_appid === Number(normalizedAppId) &&
+        e.data.steam_appid === Number(appId) &&
         e.data.name,
     );
 
@@ -220,7 +257,9 @@ async function getPlatiCount(appId, appName) {
     return null;
   }
 
-  const storageKey = PPLATI_COUNT_CACHE_PREFIX + normalizedAppId;
+  // Ключ включает название: когда зеркало уточняет имя (вместо слага URL),
+  // не отдаём закешированный по старому имени результат
+  const storageKey = `${PPLATI_COUNT_CACHE_PREFIX}${normalizedAppId}:${name}`;
   const cached = await readCachedPlatiCount(storageKey);
   if (cached !== null) {
     return cached;
